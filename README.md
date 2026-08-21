@@ -1,75 +1,54 @@
-namespace StoreInventory.Models;
+using StoreInventory.Models;
 
-public class Product
+namespace StoreInventory.Services;
+
+public class ReportService
 {
-    public int Id { get; set; }
+    public List<(int ProductId, int QuantitySold)> GetTopSellingProducts(
+        List<Order> orders)
+    {
+        return orders
+            .SelectMany(order => order.Items)
+            .GroupBy(item => item.ProductId)
+            .Select(group => (
+                ProductId: group.Key,
+                QuantitySold: group.Sum(item => item.Quantity)
+            ))
+            .OrderByDescending(x => x.QuantitySold)
+            .ToList();
+    }
 
-    public string Name { get; set; } = "";
+    public List<(int CustomerId, decimal Revenue)> GetRevenuePerCustomer(
+        List<Order> orders)
+    {
+        return orders
+            .GroupBy(order => order.CustomerId)
+            .Select(group => (
+                CustomerId: group.Key,
+                Revenue: group.Sum(order => order.TotalAmount)
+            ))
+            .OrderByDescending(x => x.Revenue)
+            .ToList();
+    }
 
-    public decimal Price { get; set; }
+    public List<Product> GetLowStockProducts(
+        List<Product> products)
+    {
+        return products
+            .Where(product => product.StockQuantity < 5)
+            .ToList();
+    }
 
-    public int StockQuantity { get; set; }
+    public List<Order> GetOrdersByDateRange(
+        List<Order> orders,
+        DateTime from,
+        DateTime to)
+    {
+        return orders
+            .Where(order =>
+                order.OrderDate >= from &&
+                order.OrderDate <= to)
+            .OrderBy(order => order.OrderDate)
+            .ToList();
+    }
 }
-
-namespace StoreInventory.Models;
-
-public class Customer
-{
-    public int Id { get; set; }
-
-    public string Name { get; set; } = "";
-
-    public string Email { get; set; } = "";
-
-    public string Phone { get; set; } = "";
-}
-
-namespace StoreInventory.Models;
-
-public enum OrderStatus
-{
-    Pending,
-    Confirmed,
-    Cancelled,
-    Completed
-}
-
-namespace StoreInventory.Models;
-
-public class OrderItem
-{
-    public int ProductId { get; set; }
-
-    public int Quantity { get; set; }
-
-    public decimal UnitPrice { get; set; }
-}
-
-namespace StoreInventory.Models;
-
-public class Order
-{
-    public int Id { get; set; }
-
-    public int CustomerId { get; set; }
-
-    public List<OrderItem> Items { get; set; } = new();
-
-    public DateTime OrderDate { get; set; }
-
-    public decimal TotalAmount { get; set; }
-
-    public decimal Discount { get; set; }
-
-    public OrderStatus Status { get; set; }
-}
-
-
-
-
-
-
-
-
-
-
