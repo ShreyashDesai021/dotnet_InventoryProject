@@ -1,22 +1,13 @@
-using Microsoft.EntityFrameworkCore;
-using StoreInventory.API.Models.Domain;
-
-namespace StoreInventory.API.Data
+namespace StoreInventory.API.Models.Domain
 {
-    public class StoreInventoryDbContext : DbContext
+    public class Product
     {
-        public StoreInventoryDbContext(
-            DbContextOptions<StoreInventoryDbContext> options)
-            : base(options)
-        {
-        }
+        public int Id { get; set; }
 
-        public DbSet<Product> Products { get; set; }
+        public string Name { get; set; } = string.Empty;
 
-        public DbSet<Customer> Customers { get; set; }
+        public decimal Price { get; set; }
 
-        public DbSet<Order> Orders { get; set; }
-
-        public DbSet<OrderItem> OrderItems { get; set; }
+        public int StockQuantity { get; set; }
     }
 }
