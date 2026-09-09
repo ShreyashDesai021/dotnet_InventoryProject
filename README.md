@@ -1,13 +1,33 @@
 namespace StoreInventory.API.Models.Domain
 {
-    public class Customer
+    public class OrderItem
     {
         public int Id { get; set; }
 
-        public string Name { get; set; } = string.Empty;
+        public int ProductId { get; set; }
 
-        public string Email { get; set; } = string.Empty;
+        public int Quantity { get; set; }
 
-        public string Phone { get; set; } = string.Empty;
+        public decimal UnitPrice { get; set; }
+    }
+}
+
+namespace StoreInventory.API.Models.Domain
+{
+    public class Order
+    {
+        public int Id { get; set; }
+
+        public int CustomerId { get; set; }
+
+        public List<OrderItem> Items { get; set; } = new();
+
+        public DateTime OrderDate { get; set; }
+
+        public decimal TotalAmount { get; set; }
+
+        public decimal Discount { get; set; }
+
+        public OrderStatus Status { get; set; }
     }
 }
