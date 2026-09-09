@@ -1,13 +1,13 @@
 namespace StoreInventory.API.Models.Domain
 {
-    public class Product
+    public class Customer
     {
         public int Id { get; set; }
 
         public string Name { get; set; } = string.Empty;
 
-        public decimal Price { get; set; }
+        public string Email { get; set; } = string.Empty;
 
-        public int StockQuantity { get; set; }
+        public string Phone { get; set; } = string.Empty;
     }
 }
