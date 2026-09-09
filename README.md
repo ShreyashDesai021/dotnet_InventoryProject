@@ -1,40 +1,43 @@
 using Microsoft.EntityFrameworkCore;
-using StoreInventory.API.Data;
+using StoreInventory.API.Models.Domain;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-builder.Services.AddControllers();
-
-// Register Entity Framework Core with SQL Server
-builder.Services.AddDbContext<StoreInventoryDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")
-    ));
-
-builder.Services.AddOpenApi();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+namespace StoreInventory.API.Data
 {
-    app.MapOpenApi();
-
-    // Enable Swagger UI
-    app.UseSwaggerUI(options =>
+    public class StoreInventoryDbContext : DbContext
     {
-        options.SwaggerEndpoint(
-            "/openapi/v1.json",
-            "StoreInventory API v1"
-        );
-    });
+        public StoreInventoryDbContext(
+            DbContextOptions<StoreInventoryDbContext> options)
+            : base(options)
+        {
+        }
+
+        public DbSet<Product> Products { get; set; }
+
+        public DbSet<Customer> Customers { get; set; }
+
+        public DbSet<Order> Orders { get; set; }
+
+        public DbSet<OrderItem> OrderItems { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Product>()
+                .Property(p => p.Price)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Order>()
+                .Property(o => o.TotalAmount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Order>()
+                .Property(o => o.Discount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<OrderItem>()
+                .Property(oi => oi.UnitPrice)
+                .HasPrecision(18, 2);
+        }
+    }
 }
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();
