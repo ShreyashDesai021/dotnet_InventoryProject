@@ -1,43 +1,17 @@
-using Microsoft.EntityFrameworkCore;
 using StoreInventory.API.Models.Domain;
 
-namespace StoreInventory.API.Data
+namespace StoreInventory.API.Repositories.Interfaces
 {
-    public class StoreInventoryDbContext : DbContext
+    public interface IProductRepository
     {
-        public StoreInventoryDbContext(
-            DbContextOptions<StoreInventoryDbContext> options)
-            : base(options)
-        {
-        }
+        Task<List<Product>> GetAllAsync();
 
-        public DbSet<Product> Products { get; set; }
+        Task<Product?> GetByIdAsync(int id);
 
-        public DbSet<Customer> Customers { get; set; }
+        Task<Product> CreateAsync(Product product);
 
-        public DbSet<Order> Orders { get; set; }
+        Task<Product?> UpdateAsync(int id, Product product);
 
-        public DbSet<OrderItem> OrderItems { get; set; }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<Product>()
-                .Property(p => p.Price)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<Order>()
-                .Property(o => o.TotalAmount)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<Order>()
-                .Property(o => o.Discount)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<OrderItem>()
-                .Property(oi => oi.UnitPrice)
-                .HasPrecision(18, 2);
-        }
+        Task<Product?> DeleteAsync(int id);
     }
 }
