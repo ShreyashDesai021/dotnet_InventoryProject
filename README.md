@@ -1,85 +1,38 @@
-using Microsoft.AspNetCore.Mvc;
-using StoreInventory.API.Models.Domain;
-using StoreInventory.API.Services.Interfaces;
-
-namespace StoreInventory.API.Controllers
+namespace StoreInventory.API.Models.DTO
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ProductsController : ControllerBase
+    public class ProductDto
     {
-        private readonly IProductService _productService;
+        public int Id { get; set; }
 
-        public ProductsController(IProductService productService)
-        {
-            _productService = productService;
-        }
+        public string Name { get; set; } = "";
 
-        // GET: api/products
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var products = await _productService.GetAllAsync();
+        public decimal Price { get; set; }
 
-            return Ok(products);
-        }
+        public int StockQuantity { get; set; }
+    }
+}
 
-        // GET: api/products/5
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            var product = await _productService.GetByIdAsync(id);
+namespace StoreInventory.API.Models.DTO
+{
+    public class CreateProductRequestDto
+    {
+        public string Name { get; set; } = "";
 
-            if (product == null)
-            {
-                return NotFound();
-            }
+        public decimal Price { get; set; }
 
-            return Ok(product);
-        }
+        public int StockQuantity { get; set; }
+    }
+}
 
-        // POST: api/products
-        [HttpPost]
-        public async Task<IActionResult> Create(Product product)
-        {
-            var createdProduct = await _productService.CreateAsync(product);
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = createdProduct.Id },
-                createdProduct);
-        }
+namespace StoreInventory.API.Models.DTO
+{
+    public class UpdateProductRequestDto
+    {
+        public string Name { get; set; } = "";
 
-        // PUT: api/products/5
-        [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(
-            int id,
-            Product product)
-        {
-            var updatedProduct = await _productService
-                .UpdateAsync(id, product);
+        public decimal Price { get; set; }
 
-            if (updatedProduct == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(updatedProduct);
-        }
-
-        // DELETE: api/products/5
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var deletedProduct = await _productService
-                .DeleteAsync(id);
-
-            if (deletedProduct == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(deletedProduct);
-        }
+        public int StockQuantity { get; set; }
     }
 }
