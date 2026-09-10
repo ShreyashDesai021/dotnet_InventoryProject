@@ -1,38 +1,21 @@
-namespace StoreInventory.API.Models.DTO
+using AutoMapper;
+using StoreInventory.API.Models.Domain;
+using StoreInventory.API.Models.DTO;
+
+namespace StoreInventory.API.Mappings
 {
-    public class ProductDto
+    public class AutoMapperProfile : Profile
     {
-        public int Id { get; set; }
+        public AutoMapperProfile()
+        {
+            // Domain Model → Response DTO
+            CreateMap<Product, ProductDto>();
 
-        public string Name { get; set; } = "";
+            // Create Request DTO → Domain Model
+            CreateMap<CreateProductRequestDto, Product>();
 
-        public decimal Price { get; set; }
-
-        public int StockQuantity { get; set; }
-    }
-}
-
-namespace StoreInventory.API.Models.DTO
-{
-    public class CreateProductRequestDto
-    {
-        public string Name { get; set; } = "";
-
-        public decimal Price { get; set; }
-
-        public int StockQuantity { get; set; }
-    }
-}
-
-
-namespace StoreInventory.API.Models.DTO
-{
-    public class UpdateProductRequestDto
-    {
-        public string Name { get; set; } = "";
-
-        public decimal Price { get; set; }
-
-        public int StockQuantity { get; set; }
+            // Update Request DTO → Domain Model
+            CreateMap<UpdateProductRequestDto, Product>();
+        }
     }
 }
