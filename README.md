@@ -1,18 +1,22 @@
-using AutoMapper;
-using StoreInventory.API.Models.Domain;
-using StoreInventory.API.Models.DTO;
-
-namespace StoreInventory.API.Mappings
+// PUT: api/products/5
+[HttpPut("{id:int}")]
+public async Task<IActionResult> Update(
+    int id,
+    UpdateProductRequestDto request)
 {
-    public class AutoMapperProfile : Profile
+    var product = _mapper.Map<Product>(request);
+
+    product.Id = id;
+
+    var updatedProduct = await _productService
+        .UpdateAsync(id, product);
+
+    if (updatedProduct == null)
     {
-        public AutoMapperProfile()
-        {
-            CreateMap<Product, ProductDto>();
-
-            CreateMap<CreateProductRequestDto, Product>();
-
-            CreateMap<UpdateProductRequestDto, Product>();
-        }
+        return NotFound();
     }
+
+    var productDto = _mapper.Map<ProductDto>(updatedProduct);
+
+    return Ok(productDto);
 }
