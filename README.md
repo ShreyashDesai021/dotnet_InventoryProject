@@ -1,36 +1,83 @@
-using System.ComponentModel.DataAnnotations;
-
-namespace StoreInventory.API.Models.DTO
+namespace StoreInventory.API.Exceptions
 {
-    public class CreateProductRequestDto
+    public class OutOfStockException : Exception
     {
-        [Required]
-        [StringLength(100, MinimumLength = 2)]
-        public string Name { get; set; } = "";
-
-        [Range(0.01, 999999999.99)]
-        public decimal Price { get; set; }
-
-        [Range(0, int.MaxValue)]
-        public int StockQuantity { get; set; }
+        public OutOfStockException(string message)
+            : base(message)
+        {
+        }
     }
 }
 
 
-using System.ComponentModel.DataAnnotations;
 
-namespace StoreInventory.API.Models.DTO
+using System.Net;
+using System.Text.Json;
+using StoreInventory.API.Exceptions;
+
+namespace StoreInventory.API.Middleware
 {
-    public class UpdateProductRequestDto
+    public class ExceptionHandlingMiddleware
     {
-        [Required]
-        [StringLength(100, MinimumLength = 2)]
-        public string Name { get; set; } = "";
+        private readonly RequestDelegate _next;
+        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-        [Range(0.01, 999999999.99)]
-        public decimal Price { get; set; }
+        public ExceptionHandlingMiddleware(
+            RequestDelegate next,
+            ILogger<ExceptionHandlingMiddleware> logger)
+        {
+            _next = next;
+            _logger = logger;
+        }
 
-        [Range(0, int.MaxValue)]
-        public int StockQuantity { get; set; }
+        public async Task InvokeAsync(HttpContext context)
+        {
+            try
+            {
+                await _next(context);
+            }
+            catch (OutOfStockException ex)
+            {
+                _logger.LogWarning(ex, "Out of stock exception occurred.");
+
+                context.Response.StatusCode =
+                    (int)HttpStatusCode.BadRequest;
+
+                context.Response.ContentType =
+                    "application/json";
+
+                var response = new
+                {
+                    message = ex.Message
+                };
+
+                await context.Response.WriteAsync(
+                    JsonSerializer.Serialize(response));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An unexpected error occurred.");
+
+                context.Response.StatusCode =
+                    (int)HttpStatusCode.InternalServerError;
+
+                context.Response.ContentType =
+                    "application/json";
+
+                var response = new
+                {
+                    message = "An unexpected error occurred."
+                };
+
+                await context.Response.WriteAsync(
+                    JsonSerializer.Serialize(response));
+            }
+        }
     }
 }
+
+
+
+using StoreInventory.API.Middleware;
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
