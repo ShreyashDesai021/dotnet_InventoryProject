@@ -1,51 +1,104 @@
-namespace StoreInventory.API.Models.DTO
-{
-    public class OrderItemRequestDto
-    {
-        public int ProductId { get; set; }
-
-        public int Quantity { get; set; }
-    }
-}
-
-
-namespace StoreInventory.API.Models.DTO
-{
-    public class CreateOrderRequestDto
-    {
-        public int CustomerId { get; set; }
-
-        public List<OrderItemRequestDto> Items { get; set; } = new();
-
-        public decimal DiscountAmount { get; set; }
-    }
-}
-
-
-
-
-
 using StoreInventory.API.Models.Domain;
 
-namespace StoreInventory.API.Models.DTO
+namespace StoreInventory.API.Repositories.Interfaces
 {
-    public class OrderDto
+    public interface IOrderRepository
     {
-        public int Id { get; set; }
+        Task<List<Order>> GetAllAsync();
 
-        public int CustomerId { get; set; }
+        Task<Order?> GetByIdAsync(int id);
 
-        public List<OrderItem> Items { get; set; } = new();
+        Task<Order> CreateAsync(Order order);
 
-        public DateTime OrderDate { get; set; }
+        Task<Order?> UpdateAsync(int id, Order order);
 
-        public decimal TotalAmount { get; set; }
-
-        public decimal Discount { get; set; }
-
-        public OrderStatus Status { get; set; }
+        Task<Order?> DeleteAsync(int id);
     }
 }
 
+
+using Microsoft.EntityFrameworkCore;
+using StoreInventory.API.Data;
+using StoreInventory.API.Models.Domain;
+using StoreInventory.API.Repositories.Interfaces;
+
+namespace StoreInventory.API.Repositories.SQL
+{
+    public class OrderRepository : IOrderRepository
+    {
+        private readonly StoreInventoryDbContext _context;
+
+        public OrderRepository(StoreInventoryDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<Order>> GetAllAsync()
+        {
+            return await _context.Orders
+                .Include(o => o.Items)
+                .ToListAsync();
+        }
+
+        public async Task<Order?> GetByIdAsync(int id)
+        {
+            return await _context.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == id);
+        }
+
+        public async Task<Order> CreateAsync(Order order)
+        {
+            await _context.Orders.AddAsync(order);
+
+            await _context.SaveChangesAsync();
+
+            return order;
+        }
+
+        public async Task<Order?> UpdateAsync(int id, Order order)
+        {
+            var existingOrder = await _context.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (existingOrder == null)
+                return null;
+
+            existingOrder.CustomerId = order.CustomerId;
+            existingOrder.OrderDate = order.OrderDate;
+            existingOrder.TotalAmount = order.TotalAmount;
+            existingOrder.Discount = order.Discount;
+            existingOrder.Status = order.Status;
+
+            await _context.SaveChangesAsync();
+
+            return existingOrder;
+        }
+
+        public async Task<Order?> DeleteAsync(int id)
+        {
+            var order = await _context.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null)
+                return null;
+
+            _context.Orders.Remove(order);
+
+            await _context.SaveChangesAsync();
+
+            return order;
+        }
+    }
+}
+
+
+modelBuilder.Entity<Order>()
+    .HasMany(o => o.Items)
+    .WithOne()
+    .HasForeignKey("OrderId")
+    .OnDelete(DeleteBehavior.Cascade);
 
 
