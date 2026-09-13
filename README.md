@@ -1,8 +1,8 @@
 using StoreInventory.API.Models.Domain;
 
-namespace StoreInventory.API.Repositories.Interfaces
+namespace StoreInventory.API.Services.Interfaces
 {
-    public interface ICustomerRepository
+    public interface ICustomerService
     {
         Task<List<Customer>> GetAllAsync();
 
@@ -17,81 +17,57 @@ namespace StoreInventory.API.Repositories.Interfaces
 }
 
 
-using Microsoft.EntityFrameworkCore;
-using StoreInventory.API.Data;
+
 using StoreInventory.API.Models.Domain;
 using StoreInventory.API.Repositories.Interfaces;
+using StoreInventory.API.Services.Interfaces;
 
-namespace StoreInventory.API.Repositories.SQL
+namespace StoreInventory.API.Services
 {
-    public class CustomerRepository : ICustomerRepository
+    public class CustomerService : ICustomerService
     {
-        private readonly StoreInventoryDbContext _context;
+        private readonly ICustomerRepository _customerRepository;
 
-        public CustomerRepository(StoreInventoryDbContext context)
+        public CustomerService(ICustomerRepository customerRepository)
         {
-            _context = context;
+            _customerRepository = customerRepository;
         }
 
         public async Task<List<Customer>> GetAllAsync()
         {
-            return await _context.Customers
-                .ToListAsync();
+            return await _customerRepository.GetAllAsync();
         }
 
         public async Task<Customer?> GetByIdAsync(int id)
         {
-            return await _context.Customers
-                .FirstOrDefaultAsync(c => c.Id == id);
+            return await _customerRepository.GetByIdAsync(id);
         }
 
         public async Task<Customer> CreateAsync(Customer customer)
         {
-            await _context.Customers.AddAsync(customer);
-
-            await _context.SaveChangesAsync();
-
-            return customer;
+            return await _customerRepository.CreateAsync(customer);
         }
 
         public async Task<Customer?> UpdateAsync(
             int id,
             Customer customer)
         {
-            var existingCustomer = await _context.Customers
-                .FirstOrDefaultAsync(c => c.Id == id);
-
-            if (existingCustomer == null)
-            {
-                return null;
-            }
-
-            existingCustomer.Name = customer.Name;
-            existingCustomer.Email = customer.Email;
-            existingCustomer.Phone = customer.Phone;
-
-            await _context.SaveChangesAsync();
-
-            return existingCustomer;
+            return await _customerRepository
+                .UpdateAsync(id, customer);
         }
 
         public async Task<Customer?> DeleteAsync(int id)
         {
-            var customer = await _context.Customers
-                .FirstOrDefaultAsync(c => c.Id == id);
-
-            if (customer == null)
-            {
-                return null;
-            }
-
-            _context.Customers.Remove(customer);
-
-            await _context.SaveChangesAsync();
-
-            return customer;
+            return await _customerRepository.DeleteAsync(id);
         }
     }
 }
 
+
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+
+builder.Services.AddScoped<IProductService, ProductService>();
+
+builder.Services.AddScoped<ICustomerService, CustomerService>();
