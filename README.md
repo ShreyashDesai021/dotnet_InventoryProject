@@ -1,22 +1,36 @@
-// PUT: api/products/5
-[HttpPut("{id:int}")]
-public async Task<IActionResult> Update(
-    int id,
-    UpdateProductRequestDto request)
+using System.ComponentModel.DataAnnotations;
+
+namespace StoreInventory.API.Models.DTO
 {
-    var product = _mapper.Map<Product>(request);
-
-    product.Id = id;
-
-    var updatedProduct = await _productService
-        .UpdateAsync(id, product);
-
-    if (updatedProduct == null)
+    public class CreateProductRequestDto
     {
-        return NotFound();
+        [Required]
+        [StringLength(100, MinimumLength = 2)]
+        public string Name { get; set; } = "";
+
+        [Range(0.01, 999999999.99)]
+        public decimal Price { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int StockQuantity { get; set; }
     }
+}
 
-    var productDto = _mapper.Map<ProductDto>(updatedProduct);
 
-    return Ok(productDto);
+using System.ComponentModel.DataAnnotations;
+
+namespace StoreInventory.API.Models.DTO
+{
+    public class UpdateProductRequestDto
+    {
+        [Required]
+        [StringLength(100, MinimumLength = 2)]
+        public string Name { get; set; } = "";
+
+        [Range(0.01, 999999999.99)]
+        public decimal Price { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int StockQuantity { get; set; }
+    }
 }
