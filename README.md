@@ -1,53 +1,97 @@
-namespace StoreInventory.API.Models.DTO
+using StoreInventory.API.Models.Domain;
+
+namespace StoreInventory.API.Repositories.Interfaces
 {
-    public class CustomerDto
+    public interface ICustomerRepository
     {
-        public int Id { get; set; }
+        Task<List<Customer>> GetAllAsync();
 
-        public string Name { get; set; } = "";
+        Task<Customer?> GetByIdAsync(int id);
 
-        public string Email { get; set; } = "";
+        Task<Customer> CreateAsync(Customer customer);
 
-        public string Phone { get; set; } = "";
+        Task<Customer?> UpdateAsync(int id, Customer customer);
+
+        Task<Customer?> DeleteAsync(int id);
     }
 }
 
 
-using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
+using StoreInventory.API.Data;
+using StoreInventory.API.Models.Domain;
+using StoreInventory.API.Repositories.Interfaces;
 
-namespace StoreInventory.API.Models.DTO
+namespace StoreInventory.API.Repositories.SQL
 {
-    public class CreateCustomerRequestDto
+    public class CustomerRepository : ICustomerRepository
     {
-        [Required]
-        [StringLength(100, MinimumLength = 2)]
-        public string Name { get; set; } = "";
+        private readonly StoreInventoryDbContext _context;
 
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
+        public CustomerRepository(StoreInventoryDbContext context)
+        {
+            _context = context;
+        }
 
-        [Required]
-        public string Phone { get; set; } = "";
+        public async Task<List<Customer>> GetAllAsync()
+        {
+            return await _context.Customers
+                .ToListAsync();
+        }
+
+        public async Task<Customer?> GetByIdAsync(int id)
+        {
+            return await _context.Customers
+                .FirstOrDefaultAsync(c => c.Id == id);
+        }
+
+        public async Task<Customer> CreateAsync(Customer customer)
+        {
+            await _context.Customers.AddAsync(customer);
+
+            await _context.SaveChangesAsync();
+
+            return customer;
+        }
+
+        public async Task<Customer?> UpdateAsync(
+            int id,
+            Customer customer)
+        {
+            var existingCustomer = await _context.Customers
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (existingCustomer == null)
+            {
+                return null;
+            }
+
+            existingCustomer.Name = customer.Name;
+            existingCustomer.Email = customer.Email;
+            existingCustomer.Phone = customer.Phone;
+
+            await _context.SaveChangesAsync();
+
+            return existingCustomer;
+        }
+
+        public async Task<Customer?> DeleteAsync(int id)
+        {
+            var customer = await _context.Customers
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (customer == null)
+            {
+                return null;
+            }
+
+            _context.Customers.Remove(customer);
+
+            await _context.SaveChangesAsync();
+
+            return customer;
+        }
     }
 }
 
-
-using System.ComponentModel.DataAnnotations;
-
-namespace StoreInventory.API.Models.DTO
-{
-    public class UpdateCustomerRequestDto
-    {
-        [Required]
-        [StringLength(100, MinimumLength = 2)]
-        public string Name { get; set; } = "";
-
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
-
-        [Required]
-        public string Phone { get; set; } = "";
-    }
-}
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
