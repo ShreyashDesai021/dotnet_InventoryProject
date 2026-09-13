@@ -1,73 +1,82 @@
-using StoreInventory.API.Models.Domain;
-
-namespace StoreInventory.API.Services.Interfaces
+namespace StoreInventory.API.Exceptions
 {
-    public interface ICustomerService
+    public class OutOfStockException : Exception
     {
-        Task<List<Customer>> GetAllAsync();
-
-        Task<Customer?> GetByIdAsync(int id);
-
-        Task<Customer> CreateAsync(Customer customer);
-
-        Task<Customer?> UpdateAsync(int id, Customer customer);
-
-        Task<Customer?> DeleteAsync(int id);
-    }
-}
-
-
-
-using StoreInventory.API.Models.Domain;
-using StoreInventory.API.Repositories.Interfaces;
-using StoreInventory.API.Services.Interfaces;
-
-namespace StoreInventory.API.Services
-{
-    public class CustomerService : ICustomerService
-    {
-        private readonly ICustomerRepository _customerRepository;
-
-        public CustomerService(ICustomerRepository customerRepository)
+        public OutOfStockException(string message)
+            : base(message)
         {
-            _customerRepository = customerRepository;
-        }
-
-        public async Task<List<Customer>> GetAllAsync()
-        {
-            return await _customerRepository.GetAllAsync();
-        }
-
-        public async Task<Customer?> GetByIdAsync(int id)
-        {
-            return await _customerRepository.GetByIdAsync(id);
-        }
-
-        public async Task<Customer> CreateAsync(Customer customer)
-        {
-            return await _customerRepository.CreateAsync(customer);
-        }
-
-        public async Task<Customer?> UpdateAsync(
-            int id,
-            Customer customer)
-        {
-            return await _customerRepository
-                .UpdateAsync(id, customer);
-        }
-
-        public async Task<Customer?> DeleteAsync(int id)
-        {
-            return await _customerRepository.DeleteAsync(id);
         }
     }
 }
 
 
-builder.Services.AddScoped<IProductRepository, ProductRepository>();
+using System.Net;
+using System.Text.Json;
+using StoreInventory.API.Exceptions;
 
-builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+namespace StoreInventory.API.Middleware
+{
+    public class ExceptionHandlingMiddleware
+    {
+        private readonly RequestDelegate _next;
+        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-builder.Services.AddScoped<IProductService, ProductService>();
+        public ExceptionHandlingMiddleware(
+            RequestDelegate next,
+            ILogger<ExceptionHandlingMiddleware> logger)
+        {
+            _next = next;
+            _logger = logger;
+        }
 
-builder.Services.AddScoped<ICustomerService, CustomerService>();
+        public async Task InvokeAsync(HttpContext context)
+        {
+            try
+            {
+                await _next(context);
+            }
+            catch (OutOfStockException ex)
+            {
+                _logger.LogWarning(ex, "Out of stock exception occurred.");
+
+                context.Response.StatusCode =
+                    (int)HttpStatusCode.BadRequest;
+
+                context.Response.ContentType =
+                    "application/json";
+
+                var response = new
+                {
+                    message = ex.Message
+                };
+
+                await context.Response.WriteAsync(
+                    JsonSerializer.Serialize(response));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An unexpected error occurred.");
+
+                context.Response.StatusCode =
+                    (int)HttpStatusCode.InternalServerError;
+
+                context.Response.ContentType =
+                    "application/json";
+
+                var response = new
+                {
+                    message = "An unexpected error occurred."
+                };
+
+                await context.Response.WriteAsync(
+                    JsonSerializer.Serialize(response));
+            }
+        }
+    }
+}
+
+
+using StoreInventory.API.Middleware;
+
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
