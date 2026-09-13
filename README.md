@@ -163,3 +163,13 @@ namespace StoreInventory.API.Services
         }
     }
 }
+
+
+
+builder.Services.AddScoped<IOrderService, OrderService>();
+
+
+using StoreInventory.API.Repositories.Interfaces;
+using StoreInventory.API.Repositories.SQL;
+using StoreInventory.API.Services;
+using StoreInventory.API.Services.Interfaces;
