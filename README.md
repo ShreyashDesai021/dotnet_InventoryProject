@@ -1,82 +1,128 @@
-namespace StoreInventory.API.Exceptions
+using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using StoreInventory.API.Models.Domain;
+using StoreInventory.API.Models.DTO;
+using StoreInventory.API.Services.Interfaces;
+
+namespace StoreInventory.API.Controllers
 {
-    public class OutOfStockException : Exception
+    [Route("api/[controller]")]
+    [ApiController]
+    public class CustomersController : ControllerBase
     {
-        public OutOfStockException(string message)
-            : base(message)
+        private readonly ICustomerService _customerService;
+        private readonly IMapper _mapper;
+
+        public CustomersController(
+            ICustomerService customerService,
+            IMapper mapper)
         {
+            _customerService = customerService;
+            _mapper = mapper;
+        }
+
+        // GET: api/customers
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var customers = await _customerService.GetAllAsync();
+
+            var customerDtos =
+                _mapper.Map<List<CustomerDto>>(customers);
+
+            return Ok(customerDtos);
+        }
+
+        // GET: api/customers/5
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var customer =
+                await _customerService.GetByIdAsync(id);
+
+            if (customer == null)
+            {
+                return NotFound();
+            }
+
+            var customerDto =
+                _mapper.Map<CustomerDto>(customer);
+
+            return Ok(customerDto);
+        }
+
+        // POST: api/customers
+        [HttpPost]
+        public async Task<IActionResult> Create(
+            CreateCustomerRequestDto request)
+        {
+            var customer =
+                _mapper.Map<Customer>(request);
+
+            var createdCustomer =
+                await _customerService.CreateAsync(customer);
+
+            var customerDto =
+                _mapper.Map<CustomerDto>(createdCustomer);
+
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = customerDto.Id },
+                customerDto);
+        }
+
+        // PUT: api/customers/5
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(
+            int id,
+            UpdateCustomerRequestDto request)
+        {
+            var customer =
+                _mapper.Map<Customer>(request);
+
+            // Explicitly ensure the mapped object uses
+            // the ID from the URL.
+            customer.Id = id;
+
+            var updatedCustomer =
+                await _customerService
+                    .UpdateAsync(id, customer);
+
+            if (updatedCustomer == null)
+            {
+                return NotFound();
+            }
+
+            var customerDto =
+                _mapper.Map<CustomerDto>(updatedCustomer);
+
+            return Ok(customerDto);
+        }
+
+        // DELETE: api/customers/5
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var deletedCustomer =
+                await _customerService.DeleteAsync(id);
+
+            if (deletedCustomer == null)
+            {
+                return NotFound();
+            }
+
+            var customerDto =
+                _mapper.Map<CustomerDto>(deletedCustomer);
+
+            return Ok(customerDto);
         }
     }
 }
 
 
-using System.Net;
-using System.Text.Json;
-using StoreInventory.API.Exceptions;
 
-namespace StoreInventory.API.Middleware
-{
-    public class ExceptionHandlingMiddleware
-    {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+CreateMap<Customer, CustomerDto>();
 
-        public ExceptionHandlingMiddleware(
-            RequestDelegate next,
-            ILogger<ExceptionHandlingMiddleware> logger)
-        {
-            _next = next;
-            _logger = logger;
-        }
+CreateMap<CreateCustomerRequestDto, Customer>();
 
-        public async Task InvokeAsync(HttpContext context)
-        {
-            try
-            {
-                await _next(context);
-            }
-            catch (OutOfStockException ex)
-            {
-                _logger.LogWarning(ex, "Out of stock exception occurred.");
-
-                context.Response.StatusCode =
-                    (int)HttpStatusCode.BadRequest;
-
-                context.Response.ContentType =
-                    "application/json";
-
-                var response = new
-                {
-                    message = ex.Message
-                };
-
-                await context.Response.WriteAsync(
-                    JsonSerializer.Serialize(response));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An unexpected error occurred.");
-
-                context.Response.StatusCode =
-                    (int)HttpStatusCode.InternalServerError;
-
-                context.Response.ContentType =
-                    "application/json";
-
-                var response = new
-                {
-                    message = "An unexpected error occurred."
-                };
-
-                await context.Response.WriteAsync(
-                    JsonSerializer.Serialize(response));
-            }
-        }
-    }
-}
-
-
-using StoreInventory.API.Middleware;
-
-
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+CreateMap<UpdateCustomerRequestDto, Customer>();
