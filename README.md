@@ -1,175 +1,122 @@
-using StoreInventory.API.Models.Domain;
-
-namespace StoreInventory.API.Services.Interfaces
+namespace StoreInventory.API.Models.DTO
 {
-    public interface IOrderService
+    public class OrderItemDto
     {
-        Task<List<Order>> GetAllAsync();
+        public int Id { get; set; }
 
-        Task<Order?> GetByIdAsync(int id);
+        public int ProductId { get; set; }
 
-        Task<Order> CheckoutAsync(
-            int customerId,
-            List<OrderItem> items,
-            decimal discountAmount);
+        public int Quantity { get; set; }
 
-        Task<Order?> UpdateAsync(int id, Order order);
-
-        Task<Order?> DeleteAsync(int id);
+        public decimal UnitPrice { get; set; }
     }
 }
 
 
-using StoreInventory.API.Exceptions;
+
+
 using StoreInventory.API.Models.Domain;
-using StoreInventory.API.Repositories.Interfaces;
+
+namespace StoreInventory.API.Models.DTO
+{
+    public class OrderDto
+    {
+        public int Id { get; set; }
+
+        public int CustomerId { get; set; }
+
+        public List<OrderItemDto> Items { get; set; } = new();
+
+        public DateTime OrderDate { get; set; }
+
+        public decimal TotalAmount { get; set; }
+
+        public decimal Discount { get; set; }
+
+        public OrderStatus Status { get; set; }
+    }
+}
+
+
+
+
+CreateMap<Order, OrderDto>();
+CreateMap<OrderItem, OrderItemDto>();
+CreateMap<OrderItemRequestDto, OrderItem>();
+
+
+
+
+using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using StoreInventory.API.Models.DTO;
 using StoreInventory.API.Services.Interfaces;
 
-namespace StoreInventory.API.Services
+namespace StoreInventory.API.Controllers
 {
-    public class OrderService : IOrderService
+    [Route("api/[controller]")]
+    [ApiController]
+    public class OrdersController : ControllerBase
     {
-        private readonly IOrderRepository _orderRepository;
-        private readonly ICustomerRepository _customerRepository;
-        private readonly IProductRepository _productRepository;
+        private readonly IOrderService _orderService;
+        private readonly IMapper _mapper;
 
-        public OrderService(
-            IOrderRepository orderRepository,
-            ICustomerRepository customerRepository,
-            IProductRepository productRepository)
+        public OrdersController(
+            IOrderService orderService,
+            IMapper mapper)
         {
-            _orderRepository = orderRepository;
-            _customerRepository = customerRepository;
-            _productRepository = productRepository;
+            _orderService = orderService;
+            _mapper = mapper;
         }
 
-        public async Task<List<Order>> GetAllAsync()
+        // GET: api/Orders
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
         {
-            return await _orderRepository.GetAllAsync();
+            var orders = await _orderService.GetAllAsync();
+
+            var orderDtos = _mapper.Map<List<OrderDto>>(orders);
+
+            return Ok(orderDtos);
         }
 
-        public async Task<Order?> GetByIdAsync(int id)
+        // GET: api/Orders/1
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetById(int id)
         {
-            return await _orderRepository.GetByIdAsync(id);
+            var order = await _orderService.GetByIdAsync(id);
+
+            if (order == null)
+                return NotFound();
+
+            var orderDto = _mapper.Map<OrderDto>(order);
+
+            return Ok(orderDto);
         }
 
-        public async Task<Order> CheckoutAsync(
-            int customerId,
-            List<OrderItem> items,
-            decimal discountAmount)
+        // POST: api/Orders/checkout
+        [HttpPost("checkout")]
+        public async Task<IActionResult> Checkout(
+            CreateOrderRequestDto request)
         {
-            // An order must contain at least one product.
-            if (items == null || items.Count == 0)
-            {
-                throw new InvalidOperationException(
-                    "An order must contain at least one product.");
-            }
+            var items = _mapper.Map<
+                List<Models.Domain.OrderItem>
+            >(request.Items);
 
-            // Check customer.
-            var customer = await _customerRepository.GetByIdAsync(customerId);
+            var order = await _orderService.CheckoutAsync(
+                request.CustomerId,
+                items,
+                request.DiscountAmount);
 
-            if (customer == null)
-            {
-                throw new KeyNotFoundException(
-                    $"Customer with ID {customerId} was not found.");
-            }
+            var orderDto = _mapper.Map<OrderDto>(order);
 
-            // Validate all items BEFORE changing inventory.
-            var products = new List<Product>();
-
-            foreach (var item in items)
-            {
-                if (item.Quantity <= 0)
-                {
-                    throw new InvalidOperationException(
-                        "Quantity must be greater than zero.");
-                }
-
-                var product = await _productRepository
-                    .GetByIdAsync(item.ProductId);
-
-                if (product == null)
-                {
-                    throw new KeyNotFoundException(
-                        $"Product with ID {item.ProductId} was not found.");
-                }
-
-                if (product.StockQuantity < item.Quantity)
-                {
-                    throw new OutOfStockException(
-                        $"Insufficient stock for {product.Name}. " +
-                        $"Available: {product.StockQuantity}, " +
-                        $"Requested: {item.Quantity}.");
-                }
-
-                // Use the actual price from the database.
-                item.UnitPrice = product.Price;
-
-                products.Add(product);
-            }
-
-            // Calculate subtotal.
-            decimal subtotal = 0;
-
-            for (int i = 0; i < items.Count; i++)
-            {
-                subtotal += products[i].Price * items[i].Quantity;
-            }
-
-            // Apply 10% discount if subtotal is greater than DiscountAmount.
-            decimal discount = subtotal > discountAmount
-                ? subtotal * 0.10m
-                : 0;
-
-            decimal total = subtotal - discount;
-
-            // Update inventory ONLY after all stock checks passed.
-            for (int i = 0; i < items.Count; i++)
-            {
-                products[i].StockQuantity -= items[i].Quantity;
-
-                await _productRepository.UpdateAsync(
-                    products[i].Id,
-                    products[i]);
-            }
-
-            // Create order.
-            // IMPORTANT:
-            // We do NOT manually assign Id here.
-            // SQL Server will generate the Order ID.
-            var order = new Order
-            {
-                CustomerId = customerId,
-                Items = items,
-                OrderDate = DateTime.Now,
-                TotalAmount = total,
-                Discount = discount,
-                Status = OrderStatus.Completed
-            };
-
-            await _orderRepository.CreateAsync(order);
-
-            return order;
-        }
-
-        public async Task<Order?> UpdateAsync(int id, Order order)
-        {
-            return await _orderRepository.UpdateAsync(id, order);
-        }
-
-        public async Task<Order?> DeleteAsync(int id)
-        {
-            return await _orderRepository.DeleteAsync(id);
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = order.Id },
+                orderDto);
         }
     }
 }
 
 
 
-builder.Services.AddScoped<IOrderService, OrderService>();
-
-
-using StoreInventory.API.Repositories.Interfaces;
-using StoreInventory.API.Repositories.SQL;
-using StoreInventory.API.Services;
-using StoreInventory.API.Services.Interfaces;
