@@ -1,37 +1,17 @@
+using StoreInventory.API.Models.Domain;
+
+namespace StoreInventory.API.Services.Interfaces
 {
-  "name": "Rahul Sharma",
-  "email": "rahul@example.com",
-  "phone": "9876543210"
-}
-
-
-{
-  "name": "Laptop",
-  "price": 50000,
-  "stockQuantity": 10
-}
-
-
-{
-  "customerId": 1,
-  "items": [
+    public interface IReportService
     {
-      "productId": 1,
-      "quantity": 2
+        Task<List<object>> GetTopSellingProductsAsync();
+
+        Task<List<object>> GetRevenueByCustomerAsync();
+
+        Task<List<Product>> GetLowStockProductsAsync();
+
+        Task<List<Order>> GetOrdersByDateRangeAsync(
+            DateTime from,
+            DateTime to);
     }
-  ],
-  "discountAmount": 5000
-}
-
-
-
-{
-  "customerId": 1,
-  "items": [
-    {
-      "productId": 1,
-      "quantity": 100
-    }
-  ],
-  "discountAmount": 5000
 }
