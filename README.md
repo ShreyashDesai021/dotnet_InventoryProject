@@ -1,65 +1,120 @@
-using Microsoft.AspNetCore.Mvc;
+namespace StoreInventory.API.Models.DTO
+{
+    public class TopSellingProductDto
+    {
+        public int ProductId { get; set; }
+
+        public int TotalQuantitySold { get; set; }
+    }
+}
+
+
+namespace StoreInventory.API.Models.DTO
+{
+    public class CustomerRevenueDto
+    {
+        public int CustomerId { get; set; }
+
+        public decimal TotalRevenue { get; set; }
+    }
+}
+
+
+using StoreInventory.API.Models.Domain;
+using StoreInventory.API.Models.DTO;
+
+namespace StoreInventory.API.Services.Interfaces
+{
+    public interface IReportService
+    {
+        Task<List<TopSellingProductDto>> GetTopSellingProductsAsync();
+
+        Task<List<CustomerRevenueDto>> GetRevenueByCustomerAsync();
+
+        Task<List<Product>> GetLowStockProductsAsync();
+
+        Task<List<Order>> GetOrdersByDateRangeAsync(
+            DateTime from,
+            DateTime to);
+    }
+}
+
+
+
+
+using Microsoft.EntityFrameworkCore;
+using StoreInventory.API.Data;
+using StoreInventory.API.Models.Domain;
+using StoreInventory.API.Models.DTO;
 using StoreInventory.API.Services.Interfaces;
 
-namespace StoreInventory.API.Controllers
+namespace StoreInventory.API.Services
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ReportsController : ControllerBase
+    public class ReportService : IReportService
     {
-        private readonly IReportService _reportService;
+        private readonly StoreInventoryDbContext _context;
 
-        public ReportsController(IReportService reportService)
+        public ReportService(StoreInventoryDbContext context)
         {
-            _reportService = reportService;
+            _context = context;
         }
 
-        // GET: api/Reports/top-selling-products
-        [HttpGet("top-selling-products")]
-        public async Task<IActionResult> GetTopSellingProducts()
+        public async Task<List<TopSellingProductDto>>
+            GetTopSellingProductsAsync()
         {
-            var result = await _reportService
-                .GetTopSellingProductsAsync();
-
-            return Ok(result);
+            return await _context.OrderItems
+                .GroupBy(item => item.ProductId)
+                .Select(group => new TopSellingProductDto
+                {
+                    ProductId = group.Key,
+                    TotalQuantitySold = group.Sum(item => item.Quantity)
+                })
+                .OrderByDescending(
+                    result => result.TotalQuantitySold)
+                .ToListAsync();
         }
 
-        // GET: api/Reports/revenue-by-customer
-        [HttpGet("revenue-by-customer")]
-        public async Task<IActionResult> GetRevenueByCustomer()
+        public async Task<List<CustomerRevenueDto>>
+            GetRevenueByCustomerAsync()
         {
-            var result = await _reportService
-                .GetRevenueByCustomerAsync();
-
-            return Ok(result);
+            return await _context.Orders
+                .GroupBy(order => order.CustomerId)
+                .Select(group => new CustomerRevenueDto
+                {
+                    CustomerId = group.Key,
+                    TotalRevenue = group.Sum(
+                        order => order.TotalAmount)
+                })
+                .OrderByDescending(
+                    result => result.TotalRevenue)
+                .ToListAsync();
         }
 
-        // GET: api/Reports/low-stock-products
-        [HttpGet("low-stock-products")]
-        public async Task<IActionResult> GetLowStockProducts()
+        public async Task<List<Product>>
+            GetLowStockProductsAsync()
         {
-            var result = await _reportService
-                .GetLowStockProductsAsync();
-
-            return Ok(result);
+            return await _context.Products
+                .Where(product => product.StockQuantity < 5)
+                .OrderBy(product => product.StockQuantity)
+                .ToListAsync();
         }
 
-        // GET: api/Reports/orders-by-date
-        [HttpGet("orders-by-date")]
-        public async Task<IActionResult> GetOrdersByDateRange(
-            [FromQuery] DateTime from,
-            [FromQuery] DateTime to)
+        public async Task<List<Order>>
+            GetOrdersByDateRangeAsync(
+                DateTime from,
+                DateTime to)
         {
-            if (from > to)
-            {
-                return BadRequest(
-                    "The 'from' date cannot be later than the 'to' date.");
-            }
-
-            var result = await _reportService
-                .GetOrdersByDateRangeAsync(from, to);
-
-            return Ok(result);
+            return await _context.Orders
+                .Include(order => order.Items)
+                .Where(order =>
+                    order.OrderDate >= from &&
+                    order.OrderDate <= to)
+                .OrderBy(order => order.OrderDate)
+                .ToListAsync();
         }
     }
 }
+
+
+
+
