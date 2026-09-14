@@ -1,47 +1,3 @@
-namespace StoreInventory.API.Models.DTO
-{
-    public class TopSellingProductDto
-    {
-        public int ProductId { get; set; }
-
-        public int TotalQuantitySold { get; set; }
-    }
-}
-
-
-namespace StoreInventory.API.Models.DTO
-{
-    public class CustomerRevenueDto
-    {
-        public int CustomerId { get; set; }
-
-        public decimal TotalRevenue { get; set; }
-    }
-}
-
-
-using StoreInventory.API.Models.Domain;
-using StoreInventory.API.Models.DTO;
-
-namespace StoreInventory.API.Services.Interfaces
-{
-    public interface IReportService
-    {
-        Task<List<TopSellingProductDto>> GetTopSellingProductsAsync();
-
-        Task<List<CustomerRevenueDto>> GetRevenueByCustomerAsync();
-
-        Task<List<Product>> GetLowStockProductsAsync();
-
-        Task<List<Order>> GetOrdersByDateRangeAsync(
-            DateTime from,
-            DateTime to);
-    }
-}
-
-
-
-
 using Microsoft.EntityFrameworkCore;
 using StoreInventory.API.Data;
 using StoreInventory.API.Models.Domain;
@@ -114,7 +70,3 @@ namespace StoreInventory.API.Services
         }
     }
 }
-
-
-
-
