@@ -1,92 +1,41 @@
 namespace StoreInventory.API.Models.DTO
 {
-    public class TopSellingProductDto
+    public class ApiResponseDto<T>
     {
-        public int ProductId { get; set; }
+        public bool Success { get; set; }
 
-        public string ProductName { get; set; } = "";
+        public string Message { get; set; } = "";
 
-        public int TotalQuantitySold { get; set; }
+        public T? Data { get; set; }
     }
 }
 
 
-
-namespace StoreInventory.API.Models.DTO
+[HttpGet("{id:int}")]
+public async Task<IActionResult> GetById(int id)
 {
-    public class CustomerRevenueDto
+    var product = await _productService.GetByIdAsync(id);
+
+    if (product == null)
     {
-        public int CustomerId { get; set; }
+        var response = new ApiResponseDto<ProductDto>
+        {
+            Success = false,
+            Message = $"Product with ID {id} was not found.",
+            Data = null
+        };
 
-        public string CustomerName { get; set; } = "";
-
-        public decimal TotalRevenue { get; set; }
+        return Ok(response);
     }
+
+    var productDto = _mapper.Map<ProductDto>(product);
+
+    var successResponse = new ApiResponseDto<ProductDto>
+    {
+        Success = true,
+        Message = "Product found.",
+        Data = productDto
+    };
+
+    return Ok(successResponse);
 }
-
-
-public async Task<List<TopSellingProductDto>>
-    GetTopSellingProductsAsync()
-{
-    return await _context.OrderItems
-        .Join(
-            _context.Products,
-            item => item.ProductId,
-            product => product.Id,
-            (item, product) => new
-            {
-                ProductId = product.Id,
-                ProductName = product.Name,
-                Quantity = item.Quantity
-            })
-        .GroupBy(x => new
-        {
-            x.ProductId,
-            x.ProductName
-        })
-        .Select(group => new TopSellingProductDto
-        {
-            ProductId = group.Key.ProductId,
-            ProductName = group.Key.ProductName,
-            TotalQuantitySold =
-                group.Sum(x => x.Quantity)
-        })
-        .OrderByDescending(
-            result => result.TotalQuantitySold)
-        .ToListAsync();
-}
-
-
-
-public async Task<List<CustomerRevenueDto>>
-    GetRevenueByCustomerAsync()
-{
-    return await _context.Orders
-        .Join(
-            _context.Customers,
-            order => order.CustomerId,
-            customer => customer.Id,
-            (order, customer) => new
-            {
-                CustomerId = customer.Id,
-                CustomerName = customer.Name,
-                Revenue = order.TotalAmount
-            })
-        .GroupBy(x => new
-        {
-            x.CustomerId,
-            x.CustomerName
-        })
-        .Select(group => new CustomerRevenueDto
-        {
-            CustomerId = group.Key.CustomerId,
-            CustomerName = group.Key.CustomerName,
-            TotalRevenue =
-                group.Sum(x => x.Revenue)
-        })
-        .OrderByDescending(
-            result => result.TotalRevenue)
-        .ToListAsync();
-}
-
-
