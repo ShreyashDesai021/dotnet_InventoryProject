@@ -1,114 +1,146 @@
-// Combine duplicate products into a single order item.
-var groupedItems = items
-    .GroupBy(item => item.ProductId)
-    .Select(group => new OrderItem
-    {
-        ProductId = group.Key,
-        Quantity = group.Sum(item => item.Quantity)
-    })
-    .ToList();
+using System.ComponentModel.DataAnnotations;
 
-// Validate all items BEFORE changing inventory.
-var products = new List<Product>();
-
-foreach (var item in groupedItems)
+namespace StoreInventory.API.Models.DTO
 {
-    if (item.Quantity <= 0)
+    public class CreateProductRequestDto
     {
-        throw new InvalidOperationException(
-            "Quantity must be greater than zero.");
+        [Required]
+        [StringLength(100, MinimumLength = 2)]
+        public string Name { get; set; } = "";
+
+        [Range(0.01, double.MaxValue)]
+        public decimal Price { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int StockQuantity { get; set; }
     }
-
-    var product =
-        await _productRepository.GetByIdAsync(item.ProductId);
-
-    if (product == null)
-    {
-        throw new KeyNotFoundException(
-            $"Product with ID {item.ProductId} was not found.");
-    }
-
-    if (product.StockQuantity < item.Quantity)
-    {
-        throw new OutOfStockException(
-            $"Insufficient stock for {product.Name}. " +
-            $"Available: {product.StockQuantity}, " +
-            $"Requested: {item.Quantity}.");
-    }
-
-    // Always use the actual database price.
-    item.UnitPrice = product.Price;
-
-    products.Add(product);
 }
 
-// Calculate subtotal.
-decimal subtotal = 0;
 
-for (int i = 0; i < groupedItems.Count; i++)
+using System.ComponentModel.DataAnnotations;
+
+namespace StoreInventory.API.Models.DTO
 {
-    subtotal +=
-        products[i].Price * groupedItems[i].Quantity;
+    public class UpdateProductRequestDto
+    {
+        [Required]
+        [StringLength(100, MinimumLength = 2)]
+        public string Name { get; set; } = "";
+
+        [Range(0.01, double.MaxValue)]
+        public decimal Price { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int StockQuantity { get; set; }
+    }
 }
 
-// Apply 10% discount when subtotal
-// is greater than discountAmount.
-decimal discount = subtotal > discountAmount
-    ? subtotal * 0.10m
-    : 0;
 
-decimal total = subtotal - discount;
+using System.ComponentModel.DataAnnotations;
 
-// Reduce inventory only after all validations pass.
-for (int i = 0; i < groupedItems.Count; i++)
+namespace StoreInventory.API.Models.DTO
 {
-    products[i].StockQuantity -= groupedItems[i].Quantity;
+    public class CreateCustomerRequestDto
+    {
+        [Required]
+        [StringLength(100, MinimumLength = 2)]
+        public string Name { get; set; } = "";
 
-    await _productRepository.UpdateAsync(
-        products[i].Id,
-        products[i]);
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [Phone]
+        public string Phone { get; set; } = "";
+    }
 }
 
 
 
-var order = new Order
+using System.ComponentModel.DataAnnotations;
+
+namespace StoreInventory.API.Models.DTO
 {
-    CustomerId = customerId,
-    Items = groupedItems,
-    OrderDate = DateTime.Now,
-    TotalAmount = total,
-    Discount = discount,
-    Status = OrderStatus.Completed
-};
+    public class UpdateCustomerRequestDto
+    {
+        [Required]
+        [StringLength(100, MinimumLength = 2)]
+        public string Name { get; set; } = "";
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [Phone]
+        public string Phone { get; set; } = "";
+    }
+}
+
+
+
+using System.ComponentModel.DataAnnotations;
+
+namespace StoreInventory.API.Models.DTO
+{
+    public class OrderItemRequestDto
+    {
+        [Range(1, int.MaxValue)]
+        public int ProductId { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int Quantity { get; set; }
+    }
+}
+
+
+using System.ComponentModel.DataAnnotations;
+
+namespace StoreInventory.API.Models.DTO
+{
+    public class CreateOrderRequestDto
+    {
+        [Range(1, int.MaxValue)]
+        public int CustomerId { get; set; }
+
+        [Required]
+        [MinLength(1)]
+        public List<OrderItemRequestDto> Items { get; set; } = new();
+
+        [Range(0, double.MaxValue)]
+        public decimal DiscountAmount { get; set; }
+    }
+}
+
+
+
+{
+  "name": "",
+  "price": -100,
+  "stockQuantity": -5
+}
+
+
 
 
 {
-  "customerId": 2,
+  "name": "",
+  "email": "not-an-email",
+  "phone": ""
+}
+
+
+
+{
+  "customerId": 0,
   "items": [
     {
-      "productId": 4,
-      "quantity": 1
-    },
-    {
-      "productId": 4,
-      "quantity": 2
+      "productId": 1,
+      "quantity": 0
     }
   ],
-  "discountAmount": 5000
+  "discountAmount": -100
 }
 
 
-{
-  "customerId": 2,
-  "items": [
-    {
-      "productId": 4,
-      "quantity": 1
-    },
-    {
-      "productId": 4,
-      "quantity": 2
-    }
-  ],
-  "discountAmount": 5000
-}
