@@ -1,249 +1,68 @@
-RegisterRequestDto.cs
-
-using System.ComponentModel.DataAnnotations;
-
-namespace StoreInventory.API.Models.DTO
 {
-    public class RegisterRequestDto
-    {
-        [Required]
-        [StringLength(50, MinimumLength = 3)]
-        public string Username { get; set; } = "";
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=(localdb)\\MSSQLLocalDB;Database=StoreInventoryDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
 
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
+  "Jwt": {
+    "Key": "StoreInventorySuperSecretKey2026_ChangeThisToSomethingLong!",
+    "Issuer": "StoreInventory.API",
+    "Audience": "StoreInventory.Client",
+    "ExpiryMinutes": 60
+  },
 
-        [Required]
-        [MinLength(6)]
-        public string Password { get; set; } = "";
-
-        public string Role { get; set; } = "Employee";
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
     }
+  },
+
+  "AllowedHosts": "*"
 }
 
 
-
-
-LoginRequestDto.cs
-
-
-using System.ComponentModel.DataAnnotations;
-
-namespace StoreInventory.API.Models.DTO
-{
-    public class LoginRequestDto
-    {
-        [Required]
-        public string Username { get; set; } = "";
-
-        [Required]
-        public string Password { get; set; } = "";
-    }
-}
-
-
-LoginResponseDto.cs
-
-
-namespace StoreInventory.API.Models.DTO
-{
-    public class LoginResponseDto
-    {
-        public string Token { get; set; } = "";
-
-        public int UserId { get; set; }
-
-        public string Username { get; set; } = "";
-
-        public string Role { get; set; } = "";
-    }
-}
-
-
-
-
-
-
-using StoreInventory.API.Models.Domain;
-
-namespace StoreInventory.API.Services.Interfaces
-{
-    public interface IAuthService
-    {
-        Task<ApplicationUser> RegisterAsync(
-            string username,
-            string email,
-            string password,
-            string role);
-
-        Task<string> LoginAsync(
-            string username,
-            string password);
-    }
-}
-
-
-
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using StoreInventory.API.Models.Domain;
-using StoreInventory.API.Repositories.Interfaces;
-using StoreInventory.API.Services.Interfaces;
+using System.Text;
 
-namespace StoreInventory.API.Services
-{
-    public class AuthService : IAuthService
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        private readonly IUserRepository _userRepository;
-        private readonly IConfiguration _configuration;
-        private readonly PasswordHasher<ApplicationUser> _passwordHasher;
+        var jwtSettings =
+            builder.Configuration.GetSection("Jwt");
 
-        public AuthService(
-            IUserRepository userRepository,
-            IConfiguration configuration)
-        {
-            _userRepository = userRepository;
-            _configuration = configuration;
-            _passwordHasher = new PasswordHasher<ApplicationUser>();
-        }
-
-        public async Task<ApplicationUser> RegisterAsync(
-            string username,
-            string email,
-            string password,
-            string role)
-        {
-            var existingUsername =
-                await _userRepository.GetByUsernameAsync(username);
-
-            if (existingUsername != null)
+        options.TokenValidationParameters =
+            new TokenValidationParameters
             {
-                throw new InvalidOperationException(
-                    "Username already exists.");
-            }
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
 
-            var existingEmail =
-                await _userRepository.GetByEmailAsync(email);
+                ValidIssuer =
+                    jwtSettings["Issuer"],
 
-            if (existingEmail != null)
-            {
-                throw new InvalidOperationException(
-                    "Email already exists.");
-            }
+                ValidAudience =
+                    jwtSettings["Audience"],
 
-            var user = new ApplicationUser
-            {
-                Username = username,
-                Email = email,
-                Role = role
+                IssuerSigningKey =
+                    new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(
+                            jwtSettings["Key"]!))
             };
+    });
 
-            user.PasswordHash =
-                _passwordHasher.HashPassword(user, password);
-
-            return await _userRepository.CreateAsync(user);
-        }
-
-        public async Task<string> LoginAsync(
-            string username,
-            string password)
-        {
-            var user =
-                await _userRepository.GetByUsernameAsync(username);
-
-            if (user == null)
-            {
-                throw new UnauthorizedAccessException(
-                    "Invalid username or password.");
-            }
-
-            var passwordResult =
-                _passwordHasher.VerifyHashedPassword(
-                    user,
-                    user.PasswordHash,
-                    password);
-
-            if (passwordResult ==
-                PasswordVerificationResult.Failed)
-            {
-                throw new UnauthorizedAccessException(
-                    "Invalid username or password.");
-            }
-
-            return GenerateJwtToken(user);
-        }
-
-        private string GenerateJwtToken(ApplicationUser user)
-        {
-            var jwtSettings =
-                _configuration.GetSection("Jwt");
-
-            var key =
-                jwtSettings["Key"]
-                ?? throw new InvalidOperationException(
-                    "JWT key is not configured.");
-
-            var issuer =
-                jwtSettings["Issuer"]
-                ?? throw new InvalidOperationException(
-                    "JWT issuer is not configured.");
-
-            var audience =
-                jwtSettings["Audience"]
-                ?? throw new InvalidOperationException(
-                    "JWT audience is not configured.");
-
-            var expiryMinutes =
-                int.Parse(
-                    jwtSettings["ExpiryMinutes"] ?? "60");
-
-            var claims = new List<Claim>
-            {
-                new Claim(
-                    ClaimTypes.NameIdentifier,
-                    user.Id.ToString()),
-
-                new Claim(
-                    ClaimTypes.Name,
-                    user.Username),
-
-                new Claim(
-                    ClaimTypes.Email,
-                    user.Email),
-
-                new Claim(
-                    ClaimTypes.Role,
-                    user.Role)
-            };
-
-            var securityKey =
-                new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(key));
-
-            var credentials =
-                new SigningCredentials(
-                    securityKey,
-                    SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
-                signingCredentials: credentials);
-
-            return new JwtSecurityTokenHandler()
-                .WriteToken(token);
-        }
-    }
-}
+builder.Services.AddAuthorization();
 
 
 
-builder.Services.AddScoped<IAuthService, AuthService>();
+app.UseHttpsRedirection();
+
+app.UseAuthentication();
+
+app.UseAuthorization();
+
+app.MapControllers();
 
 
