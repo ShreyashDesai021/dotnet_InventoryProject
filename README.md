@@ -1,164 +1,92 @@
-using StoreInventory.API.Models.Domain;
-
-namespace StoreInventory.API.Services.Interfaces
+namespace StoreInventory.API.Models.DTO
 {
-    public interface IOrderService
+    public class TopSellingProductDto
     {
-        Task<List<Order>> GetAllAsync();
+        public int ProductId { get; set; }
 
-        Task<Order?> GetByIdAsync(int id);
+        public string ProductName { get; set; } = "";
 
-        Task<Order> CheckoutAsync(
-            int customerId,
-            List<OrderItem> items,
-            decimal discountAmount);
-    }
-}
-
-
-public async Task<Order?> UpdateAsync(int id, Order order)
-{
-    return await _orderRepository.UpdateAsync(id, order);
-}
-
-public async Task<Order?> DeleteAsync(int id)
-{
-    return await _orderRepository.DeleteAsync(id);
-}
-
-
-using StoreInventory.API.Models.Domain;
-
-namespace StoreInventory.API.Repositories.Interfaces
-{
-    public interface IOrderRepository
-    {
-        Task<List<Order>> GetAllAsync();
-
-        Task<Order?> GetByIdAsync(int id);
-
-        Task<Order> CreateAsync(Order order);
+        public int TotalQuantitySold { get; set; }
     }
 }
 
 
 
-using Microsoft.EntityFrameworkCore;
-using StoreInventory.API.Data;
-using StoreInventory.API.Models.Domain;
-using StoreInventory.API.Repositories.Interfaces;
-
-namespace StoreInventory.API.Repositories.SQL
+namespace StoreInventory.API.Models.DTO
 {
-    public class OrderRepository : IOrderRepository
+    public class CustomerRevenueDto
     {
-        private readonly StoreInventoryDbContext _context;
+        public int CustomerId { get; set; }
 
-        public OrderRepository(StoreInventoryDbContext context)
-        {
-            _context = context;
-        }
+        public string CustomerName { get; set; } = "";
 
-        public async Task<List<Order>> GetAllAsync()
-        {
-            return await _context.Orders
-                .Include(o => o.Items)
-                .ToListAsync();
-        }
-
-        public async Task<Order?> GetByIdAsync(int id)
-        {
-            return await _context.Orders
-                .Include(o => o.Items)
-                .FirstOrDefaultAsync(o => o.Id == id);
-        }
-
-        public async Task<Order> CreateAsync(Order order)
-        {
-            await _context.Orders.AddAsync(order);
-
-            await _context.SaveChangesAsync();
-
-            return order;
-        }
+        public decimal TotalRevenue { get; set; }
     }
 }
 
 
-
-using AutoMapper;
-using Microsoft.AspNetCore.Mvc;
-using StoreInventory.API.Models.DTO;
-using StoreInventory.API.Services.Interfaces;
-
-namespace StoreInventory.API.Controllers
+public async Task<List<TopSellingProductDto>>
+    GetTopSellingProductsAsync()
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class OrdersController : ControllerBase
-    {
-        private readonly IOrderService _orderService;
-        private readonly IMapper _mapper;
-
-        public OrdersController(
-            IOrderService orderService,
-            IMapper mapper)
+    return await _context.OrderItems
+        .Join(
+            _context.Products,
+            item => item.ProductId,
+            product => product.Id,
+            (item, product) => new
+            {
+                ProductId = product.Id,
+                ProductName = product.Name,
+                Quantity = item.Quantity
+            })
+        .GroupBy(x => new
         {
-            _orderService = orderService;
-            _mapper = mapper;
-        }
-
-        // GET: api/Orders
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
+            x.ProductId,
+            x.ProductName
+        })
+        .Select(group => new TopSellingProductDto
         {
-            var orders = await _orderService.GetAllAsync();
+            ProductId = group.Key.ProductId,
+            ProductName = group.Key.ProductName,
+            TotalQuantitySold =
+                group.Sum(x => x.Quantity)
+        })
+        .OrderByDescending(
+            result => result.TotalQuantitySold)
+        .ToListAsync();
+}
 
-            var orderDtos =
-                _mapper.Map<List<OrderDto>>(orders);
 
-            return Ok(orderDtos);
-        }
 
-        // GET: api/Orders/1
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id)
+public async Task<List<CustomerRevenueDto>>
+    GetRevenueByCustomerAsync()
+{
+    return await _context.Orders
+        .Join(
+            _context.Customers,
+            order => order.CustomerId,
+            customer => customer.Id,
+            (order, customer) => new
+            {
+                CustomerId = customer.Id,
+                CustomerName = customer.Name,
+                Revenue = order.TotalAmount
+            })
+        .GroupBy(x => new
         {
-            var order = await _orderService.GetByIdAsync(id);
-
-            if (order == null)
-                return NotFound();
-
-            var orderDto =
-                _mapper.Map<OrderDto>(order);
-
-            return Ok(orderDto);
-        }
-
-        // POST: api/Orders/checkout
-        [HttpPost("checkout")]
-        public async Task<IActionResult> Checkout(
-            CreateOrderRequestDto request)
+            x.CustomerId,
+            x.CustomerName
+        })
+        .Select(group => new CustomerRevenueDto
         {
-            var items =
-                _mapper.Map<List<Models.Domain.OrderItem>>(
-                    request.Items);
-
-            var order =
-                await _orderService.CheckoutAsync(
-                    request.CustomerId,
-                    items,
-                    request.DiscountAmount);
-
-            var orderDto =
-                _mapper.Map<OrderDto>(order);
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = order.Id },
-                orderDto);
-        }
-    }
+            CustomerId = group.Key.CustomerId,
+            CustomerName = group.Key.CustomerName,
+            TotalRevenue =
+                group.Sum(x => x.Revenue)
+        })
+        .OrderByDescending(
+            result => result.TotalRevenue)
+        .ToListAsync();
 }
 
 
