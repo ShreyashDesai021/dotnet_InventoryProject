@@ -1,22 +1,14 @@
-namespace StoreInventory.API.Models.DTO
+[HttpPut("{id:int}")]
+public async Task<IActionResult> Update(
+    int id,
+    UpdateProductRequestDto request)
 {
-    public class ApiResponseDto<T>
-    {
-        public bool Success { get; set; }
+    var product = _mapper.Map<Product>(request);
 
-        public string Message { get; set; } = "";
+    var updatedProduct =
+        await _productService.UpdateAsync(id, product);
 
-        public T? Data { get; set; }
-    }
-}
-
-
-[HttpGet("{id:int}")]
-public async Task<IActionResult> GetById(int id)
-{
-    var product = await _productService.GetByIdAsync(id);
-
-    if (product == null)
+    if (updatedProduct == null)
     {
         var response = new ApiResponseDto<ProductDto>
         {
@@ -28,12 +20,13 @@ public async Task<IActionResult> GetById(int id)
         return Ok(response);
     }
 
-    var productDto = _mapper.Map<ProductDto>(product);
+    var productDto =
+        _mapper.Map<ProductDto>(updatedProduct);
 
     var successResponse = new ApiResponseDto<ProductDto>
     {
         Success = true,
-        Message = "Product found.",
+        Message = "Product updated successfully.",
         Data = productDto
     };
 
@@ -41,12 +34,51 @@ public async Task<IActionResult> GetById(int id)
 }
 
 
-[HttpGet("{id:int}")]
-public async Task<IActionResult> GetById(int id)
-{
-    var customer = await _customerService.GetByIdAsync(id);
 
-    if (customer == null)
+[HttpDelete("{id:int}")]
+public async Task<IActionResult> Delete(int id)
+{
+    var deletedProduct =
+        await _productService.DeleteAsync(id);
+
+    if (deletedProduct == null)
+    {
+        var response = new ApiResponseDto<ProductDto>
+        {
+            Success = false,
+            Message = $"Product with ID {id} was not found.",
+            Data = null
+        };
+
+        return Ok(response);
+    }
+
+    var productDto =
+        _mapper.Map<ProductDto>(deletedProduct);
+
+    var successResponse = new ApiResponseDto<ProductDto>
+    {
+        Success = true,
+        Message = "Product deleted successfully.",
+        Data = productDto
+    };
+
+    return Ok(successResponse);
+}
+
+
+[HttpPut("{id:int}")]
+public async Task<IActionResult> Update(
+    int id,
+    UpdateCustomerRequestDto request)
+{
+    var customer =
+        _mapper.Map<Customer>(request);
+
+    var updatedCustomer =
+        await _customerService.UpdateAsync(id, customer);
+
+    if (updatedCustomer == null)
     {
         var response = new ApiResponseDto<CustomerDto>
         {
@@ -58,45 +90,49 @@ public async Task<IActionResult> GetById(int id)
         return Ok(response);
     }
 
-    var customerDto = _mapper.Map<CustomerDto>(customer);
+    var customerDto =
+        _mapper.Map<CustomerDto>(updatedCustomer);
 
-    var successResponse = new ApiResponseDto<CustomerDto>
-    {
-        Success = true,
-        Message = "Customer found.",
-        Data = customerDto
-    };
+    var successResponse =
+        new ApiResponseDto<CustomerDto>
+        {
+            Success = true,
+            Message = "Customer updated successfully.",
+            Data = customerDto
+        };
 
     return Ok(successResponse);
 }
 
 
-
-[HttpGet("{id:int}")]
-public async Task<IActionResult> GetById(int id)
+[HttpDelete("{id:int}")]
+public async Task<IActionResult> Delete(int id)
 {
-    var order = await _orderService.GetByIdAsync(id);
+    var deletedCustomer =
+        await _customerService.DeleteAsync(id);
 
-    if (order == null)
+    if (deletedCustomer == null)
     {
-        var response = new ApiResponseDto<OrderDto>
+        var response = new ApiResponseDto<CustomerDto>
         {
             Success = false,
-            Message = $"Order with ID {id} was not found.",
+            Message = $"Customer with ID {id} was not found.",
             Data = null
         };
 
         return Ok(response);
     }
 
-    var orderDto = _mapper.Map<OrderDto>(order);
+    var customerDto =
+        _mapper.Map<CustomerDto>(deletedCustomer);
 
-    var successResponse = new ApiResponseDto<OrderDto>
-    {
-        Success = true,
-        Message = "Order found.",
-        Data = orderDto
-    };
+    var successResponse =
+        new ApiResponseDto<CustomerDto>
+        {
+            Success = true,
+            Message = "Customer deleted successfully.",
+            Data = customerDto
+        };
 
     return Ok(successResponse);
 }
