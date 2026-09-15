@@ -1,26 +1,60 @@
-Install-Package Microsoft.AspNetCore.Authentication.JwtBearer
+using StoreInventory.API.Models.Domain;
 
-namespace StoreInventory.API.Models.Domain
+namespace StoreInventory.API.Repositories.Interfaces
 {
-    public class ApplicationUser
+    public interface IUserRepository
     {
-        public int Id { get; set; }
+        Task<ApplicationUser?> GetByUsernameAsync(string username);
 
-        public string Username { get; set; } = "";
+        Task<ApplicationUser?> GetByEmailAsync(string email);
 
-        public string Email { get; set; } = "";
-
-        public string PasswordHash { get; set; } = "";
-
-        public string Role { get; set; } = "Employee";
+        Task<ApplicationUser> CreateAsync(ApplicationUser user);
     }
 }
 
 
-public DbSet<ApplicationUser> Users { get; set; }
+using Microsoft.EntityFrameworkCore;
+using StoreInventory.API.Data;
+using StoreInventory.API.Models.Domain;
+using StoreInventory.API.Repositories.Interfaces;
+
+namespace StoreInventory.API.Repositories.SQL
+{
+    public class UserRepository : IUserRepository
+    {
+        private readonly StoreInventoryDbContext _context;
+
+        public UserRepository(StoreInventoryDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<ApplicationUser?> GetByUsernameAsync(
+            string username)
+        {
+            return await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == username);
+        }
+
+        public async Task<ApplicationUser?> GetByEmailAsync(
+            string email)
+        {
+            return await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == email);
+        }
+
+        public async Task<ApplicationUser> CreateAsync(
+            ApplicationUser user)
+        {
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+
+            return user;
+        }
+    }
+}
 
 
-Add-Migration AddApplicationUsers
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 
-Update-Database
