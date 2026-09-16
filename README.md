@@ -1,103 +1,88 @@
-using System.ComponentModel.DataAnnotations;
-
-namespace StoreInventory.API.Models.DTO
-{
-    public class RegisterRequestDto
-    {
-        [Required]
-        [StringLength(50, MinimumLength = 3)]
-        public string Username { get; set; } = "";
-
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
-
-        [Required]
-        [MinLength(6)]
-        public string Password { get; set; } = "";
-    }
-}
-
-
-Task<ApplicationUser> RegisterAsync(
-    string username,
-    string email,
-    string password);
-
-
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using StoreInventory.API.Models.Domain;
-using StoreInventory.API.Models.DTO;
 
-namespace StoreInventory.API.Services.Interfaces
+namespace StoreInventory.API.Data
 {
-    public interface IAuthService
+    public static class DbInitializer
     {
-        Task<ApplicationUser> RegisterAsync(
-            string username,
-            string email,
-            string password);
+        public static async Task SeedAdminAsync(
+            StoreInventoryDbContext context,
+            IConfiguration configuration)
+        {
+            var adminUsername =
+                configuration["AdminUser:Username"];
 
-        Task<LoginResponseDto> LoginAsync(
-            string username,
-            string password);
+            var adminEmail =
+                configuration["AdminUser:Email"];
+
+            var adminPassword =
+                configuration["AdminUser:Password"];
+
+            if (string.IsNullOrWhiteSpace(adminUsername) ||
+                string.IsNullOrWhiteSpace(adminEmail) ||
+                string.IsNullOrWhiteSpace(adminPassword))
+            {
+                throw new InvalidOperationException(
+                    "Admin user configuration is missing.");
+            }
+
+            var adminExists = await context.Users
+                .AnyAsync(user => user.Role == "Admin");
+
+            if (adminExists)
+            {
+                return;
+            }
+
+            var admin = new ApplicationUser
+            {
+                Username = adminUsername,
+                Email = adminEmail,
+                Role = "Admin"
+            };
+
+            var passwordHasher =
+                new PasswordHasher<ApplicationUser>();
+
+            admin.PasswordHash =
+                passwordHasher.HashPassword(
+                    admin,
+                    adminPassword);
+
+            await context.Users.AddAsync(admin);
+
+            await context.SaveChangesAsync();
+        }
     }
 }
 
 
-public async Task<ApplicationUser> RegisterAsync(
-    string username,
-    string email,
-    string password)
+dotnet user-secrets init
 
 
+dotnet user-secrets set "AdminUser:Username" "admin"
+dotnet user-secrets set "AdminUser:Email" "admin@store.com"
+dotnet user-secrets set "AdminUser:Password" "Admin@123"
 
-public async Task<ApplicationUser> RegisterAsync(
-    string username,
-    string email,
-    string password)
+
+using (var scope = app.Services.CreateScope())
 {
-    var existingUsername =
-        await _userRepository.GetByUsernameAsync(username);
+    var services = scope.ServiceProvider;
 
-    if (existingUsername != null)
-    {
-        throw new InvalidOperationException(
-            "Username already exists.");
-    }
+    var context =
+        services.GetRequiredService<StoreInventoryDbContext>();
 
-    var existingEmail =
-        await _userRepository.GetByEmailAsync(email);
-
-    if (existingEmail != null)
-    {
-        throw new InvalidOperationException(
-            "Email already exists.");
-    }
-
-    var user = new ApplicationUser
-    {
-        Username = username,
-        Email = email,
-        Role = "Employee"
-    };
-
-    user.PasswordHash =
-        _passwordHasher.HashPassword(user, password);
-
-    return await _userRepository.CreateAsync(user);
+    await DbInitializer.SeedAdminAsync(
+        context,
+        builder.Configuration);
 }
 
 
 {
-  "username": "employee2",
-  "email": "employee2@store.com",
+  "username": "employee3",
+  "email": "employee3@store.com",
   "password": "Employee@123"
 }
 
 
-{
-  "username": "testadmin",
-  "email": "testadmin@store.com",
-  "password": "TestAdmin@123",
-  "role": "Admin"
-}
