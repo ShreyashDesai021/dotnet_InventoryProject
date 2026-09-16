@@ -1,6 +1,5 @@
 {
-  "username": "employee",
-  "email": "employee@store.com",
-  "password": "Employee@123",
-  "role": "Employee"
+  "name": "Updated Product",
+  "price": 1500,
+  "stockQuantity": 20
 }
