@@ -1,5 +1,2 @@
-Slide number/title:
-Main message: What the audience should understand
-Content: Rough points or explanation
-Visuals: Attach any relevant screenshots/photos
-Must include: Exact text, numbers, or names
+Genius: Commercial Action Executor with Integrated Guardrails is a conversational assistant that helps merchants complete POS tasks such as managing appointments, updating products, converting menu photos into reviewed item drafts, and placing cash-only orders. For supported booking and catalog changes, it validates requests, prepares a proposal, obtains merchant approval, and revalidates before execution. A separate read-only assistant answers product questions using approved documentation.
+The model proposes. The merchant approves. Python enforces.
